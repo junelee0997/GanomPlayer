@@ -28,7 +28,7 @@ try:
                         client_socket.send("Train pended\n".encode())
                         print("Client pended the connection")
                         break
-                    msg = eval(msg.decode("utf-8"))
+                    msg = json.loads(msg.decode("utf-8"))
                     print(msg)
                     recv = json.dumps(activate.run(msg)) + '\n'
                     client_socket.send(recv.encode("utf-8"))
@@ -37,7 +37,6 @@ try:
 
 except Exception as e:
         raise e
-
 finally:
         print("done")
         server_socket.close()
