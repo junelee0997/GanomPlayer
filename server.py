@@ -21,6 +21,8 @@ try:
                 client_socket.send("start\n".encode("utf-8"))
                 while True:
                     msg = client_socket.recv(SIZE)
+                    if not msg:
+                        continue
                     print("msg:", msg)
                     if msg == b'-1':
                         client_socket.send("Train pended\n".encode())
