@@ -21,6 +21,7 @@ try:
                 client_socket.send("start\n".encode("utf-8"))
                 while True:
                     msg = client_socket.recv(SIZE)
+                    print("msg:", msg)
                     if not msg:
                         print("Ended the connection")
                         ch = 0
@@ -29,7 +30,6 @@ try:
                         client_socket.send("Train pended\n".encode())
                         print("Client pended the connection")
                         break
-                    print(msg)
                     msg = json.loads(msg.decode("utf-8"))
                     recv = json.dumps(activate.run(msg)) + '\n'
                     client_socket.send(recv.encode("utf-8"))
