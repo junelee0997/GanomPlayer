@@ -22,10 +22,6 @@ try:
                 while True:
                     msg = client_socket.recv(SIZE)
                     print("msg:", msg)
-                    if not msg:
-                        print("Ended the connection")
-                        ch = 0
-                        break
                     if msg == b'-1':
                         client_socket.send("Train pended\n".encode())
                         print("Client pended the connection")
