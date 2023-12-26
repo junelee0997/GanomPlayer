@@ -17,6 +17,7 @@ try:
                 ch = 1
                 print("Ready to accept")
                 client_socket, client_addr = server_socket.accept()
+                client_socket.send("start".encode("utf-8"))
                 while True:
                     msg = client_socket.recv(SIZE)
                     if not msg:
