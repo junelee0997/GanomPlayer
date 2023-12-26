@@ -14,16 +14,13 @@ print(f"Server start in {IP}")
 
 try:
     while True:
+
                 ch = 1
                 print("Ready to accept")
                 client_socket, client_addr = server_socket.accept()
                 client_socket.send("start\n".encode("utf-8"))
                 while True:
                     msg = client_socket.recv(SIZE)
-                    if not msg:
-                        print("Ended the connection")
-                        ch = 0
-                        break
                     if msg == b'-1':
                         client_socket.send("Train pended\n".encode())
                         print("Client pended the connection")
