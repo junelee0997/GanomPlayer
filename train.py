@@ -36,8 +36,6 @@ d_optimizer = torch.optim.Adam(discriminator.parameters(), lr=learning_rate)
 g_optimizer = torch.optim.Adam(generator.parameters(), lr=learning_rate)
 
 def train(msg):
-    global DiscStep
-    DiscStep += 1
 
     stat = torch.tensor([msg['isOnDamage'], msg['isOnGround'], msg['isSneaking'], msg['isSprinting']])
     vel = torch.tensor([msg['pitch'], *msg['velocity']])
