@@ -28,9 +28,10 @@ class EncGen(nn.Module):
         self.midRelu = nn.ReLU()
         self.outRelu = nn.ReLU()
     def forward(self, stat, velocity, opponentGrid, opponentMid): # stat [onhit ... ], velocity [pith, vel], opponentgrid[Area], opponentMid[coord]
-        attention = self.attentlLinVel(velocity) + self.attentLinOppo(opponentGrid)
+        attention = self.attentLinVel(velocity) + self.attentLinOppo(opponentGrid)
         attention = self.attentSoft(attention)
-        attention_stat = torch.matmul(stat, attention)
+        attention_stat = stat.view([-1]) * attention.view([-1])
+        attention_stat = attention_stat.view([1, -1, self.stat_size])
         Feature1 = self.velstatCNN(torch.stack((attention_stat, velocity)))
         Feature1 = self.velstatRelu(Feature1)
         Feature1 = torch.squeeze(Feature1)
