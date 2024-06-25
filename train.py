@@ -39,7 +39,7 @@ g_optimizer = torch.optim.Adam(generator.parameters(), lr=learning_rate)
 
 stat = torch.zeros((9, 4))
 vel = torch.zeros((9, 4))
-oppopos = torch.zeros((9, 2, 6))
+oppopos = torch.zeros((9, 6, 2))
 oppogrid = torch.zeros((9, 6))
 def generate(msg):
     global stat
