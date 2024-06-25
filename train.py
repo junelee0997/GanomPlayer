@@ -7,6 +7,8 @@ import BodyDetect
 import socket
 import json
 import server
+import numpy
+#from threading import Thread
 
 dropout = 0
 inputsize = 32
@@ -35,19 +37,36 @@ if 'discriminator.pt' in os.listdir(disc_path):
 d_optimizer = torch.optim.Adam(discriminator.parameters(), lr=learning_rate)
 g_optimizer = torch.optim.Adam(generator.parameters(), lr=learning_rate)
 
-def train(msg):
+stat = torch.zeros((9, 4))
+vel = torch.zeros((9, 4))
+oppopos = torch.zeros((9, 2, 6))
+oppogrid = torch.zeros((9, 6))
+def generate(msg):
+    global stat
+    global vel
+    global oppopos
+    global oppogrid
 
-    stat = torch.tensor([msg['isOnDamage'], msg['isOnGround'], msg['isSneaking'], msg['isSprinting']])
-    vel = torch.tensor([msg['pitch'], *msg['velocity']])
+    stat = torch.cat((stat, torch.tensor([[msg['ai']['isOnDamage'], msg['ai']['isOnGround'], msg['ai']['isSneaking'], msg['ai']['isSprinting']]])))
+    vel = torch.cat((vel, torch.tensor([[msg['ai']['pitch'], *msg['ai']['velocity']]])))
 
     img = pyautogui.screenshot()
-    oppopos, oppogrid = BodyDetect.detection(img)
+    pos, grid = BodyDetect.detection(numpy.array(img))
+    oppopos = torch.cat((oppopos, torch.tensor([pos])))
+    oppogrid = torch.cat((oppogrid, torch.tensor([grid])))
 
-    gen = generator(stat, vel, oppogrid, oppopos)
+    gen = generator(stat.unsqueeze(dim=0), vel.unsqueeze(dim=0), oppogrid.unsqueeze(dim=0), oppopos.unsqueeze(dim=0))
+    stat = stat[1:-1]
+    vel = vel[1:-1]
+    oppopos = oppopos[1:-1]
+    oppogrid = oppopos[1:-1]
 
     return {"rotation" : gen[0], "velocity" : gen[1], "isSneaking" : gen[2], "isSprinting" : gen[3], "attackIndex" : (gen[4] >= torch.FloatTensor([0.5]).to(device)) - 1}
 def save():
     torch.save(discriminator.state_dict(), disc_path + '/discriminator.pt')
     torch.save(generator.state_dict(), gen_path + '/generator.pt')
 
-server.loop(train, save)
+'''def Total(msg):
+    th1 = Thread(target = generate, args=(msg))'''
+
+server.loop(generate, save)

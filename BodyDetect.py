@@ -29,4 +29,4 @@ def detection(image):
         if i == 'body': continue
         position[i][0] -= position['body'][0]
         position[i][1] -= position['body'][1]
-    return torch.tensor(position), torch.tensor(area)
+    return list(position.values()), list(area.values())
