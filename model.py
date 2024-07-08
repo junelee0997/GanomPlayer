@@ -38,7 +38,7 @@ class EncGen(nn.Module):
         Feature1 = torch.sum(Feature1, dim=0)
         Feature2 = self.oppoGrid(opponentGrid)
         Feature2 = self.gridRelu(Feature2)
-        Feature3 = self.oppoMid(opponentMid.view(-1, self.oppo_size * 2).type(torch.DoubleTensor))
+        Feature3 = self.oppoMid(opponentMid.view(-1, self.oppo_size * 2).type(torch.FloatTensor))
         Feature3 = self.midRelu(Feature3)
         Feature = torch.concat((torch.stack([Feature1], Feature2), Feature3))
         x = self.outCNN(Feature)
