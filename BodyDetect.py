@@ -1,6 +1,7 @@
 import cv2
 import numpy as np
 import torch
+
 def detection(image):
     hsv_image = cv2.cvtColor(image, cv2.COLOR_BGR2HSV) #HSV 변경
 
@@ -16,7 +17,7 @@ def detection(image):
         mask = cv2.inRange(hsv_image, lower, upper)
 
         points = cv2.findNonZero(mask)
-        if points.any() != None:
+        if points is not None:
             x = np.array(points).T[0]
             y = np.array(points).T[1]
             label1 = (x.max(), y.max())

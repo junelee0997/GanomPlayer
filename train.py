@@ -8,6 +8,7 @@ import socket
 import json
 import server
 import numpy
+import pygetwindow as gw
 #from threading import Thread
 
 dropout = 0
@@ -50,16 +51,18 @@ def generate(msg):
     stat = torch.cat((stat, torch.tensor([[msg['ai']['isOnDamage'], msg['ai']['isOnGround'], msg['ai']['isSneaking'], msg['ai']['isSprinting']]])))
     vel = torch.cat((vel, torch.tensor([[msg['ai']['pitch'], *msg['ai']['velocity']]])))
 
-    img = pyautogui.screenshot()
+    window = gw.getWindowsWithTitle("Minecraft 1.8.8")[0]
+
+    img = pyautogui.screenshot(region=(window.left, window.top, window.width, window.height))
     pos, grid = BodyDetect.detection(numpy.array(img))
     oppopos = torch.cat((oppopos, torch.tensor([pos])))
     oppogrid = torch.cat((oppogrid, torch.tensor([grid])))
 
     gen = generator(stat.unsqueeze(dim=0), vel.unsqueeze(dim=0), oppogrid.unsqueeze(dim=0), oppopos.unsqueeze(dim=0))
-    stat = stat[1:-1]
-    vel = vel[1:-1]
-    oppopos = oppopos[1:-1]
-    oppogrid = oppopos[1:-1]
+    stat = stat[1:]
+    vel = vel[1:]
+    oppopos = oppopos[1:]
+    oppogrid = oppogrid[1:]
 
     return {"rotation" : gen[0], "velocity" : gen[1], "isSneaking" : gen[2], "isSprinting" : gen[3], "attackIndex" : (gen[4] >= torch.FloatTensor([0.5]).to(device)) - 1}
 def save():
