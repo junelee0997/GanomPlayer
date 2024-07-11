@@ -78,15 +78,30 @@ class ManyToOne(nn.Module): #
         self.jmp_fn2 = nn.Linear(hidden_size, 1, device=encoder.device)
 
         self.grid_fn = nn.Linear(2, hidden_size, device=encoder.device)
+
+        self.stat_atn = nn.Linear(1, hidden_size, device=encoder.device)
+        self.stat_atn2 = nn.Linear(1, hidden_size, device=encoder.device)
+        self.stat_atn3 = nn.Linear(1, hidden_size, device=encoder.device)
+        self.stat_atn4 = nn.Linear(1, hidden_size, device=encoder.device)
+        self.stat_atn5 = nn.Linear(1, hidden_size, device=encoder.device)
+        self.stat_atn6 = nn.Linear(1, hidden_size, device=encoder.device)
     def forward(self, stat, vel, opponentGrid, opponentMid):
         output = self.enc(stat, vel, opponentGrid, opponentMid)
         output = output.reshape(output.shape[0], -1)
-        rotation = 60 * torch.tanh(self.rot_fn2(torch.concat((self.grid_fn(opponentMid[9].to(torch.float32)).sum(dim = 0).unsqueeze(dim=0),self.rot_fn1(output)))).sum(dim=0).squeeze().detach())
-        velocity = 0.2 * 8 * torch.tanh(self.vel_fn2(self.vel_fn1(output)).squeeze().detach())
-        isSneaking = self.snk(self.snk_fn2(self.snk_fn1(output))).squeeze().detach()
-        isSprinting = self.spt(self.spt_fn2(self.spt_fn1(output))).squeeze().detach()
-        attackIndex = self.atk(self.atk_fn2(self.atk_fn1(output))).squeeze().detach()
-        isJumping = stat[9][1] * self.jmp(self.jmp_fn2(self.jmp_fn1(output))).squeeze().detach()
+        atn = torch.stack((self.stat_atn(stat.unsqueeze(dim=2)), self.stat_atn2(stat.unsqueeze(dim=2)), self.stat_atn3(stat.unsqueeze(dim=2)), self.stat_atn4(stat.unsqueeze(dim=2)), self.stat_atn5(stat.unsqueeze(dim=2)), self.stat_atn6(stat.unsqueeze(dim=2))), dim = 0)
+        for j in range(atn.shape[0]):
+            for i in range(atn.shape[1]):
+                atn[j][i] *= 0.1 * (i + 1)
+        atn = atn.sum(dim = 1)
+        atn = atn.sum(dim = 1)
+        for j in range(atn.shape[0]):
+            atn[j] = (atn[j] - min(atn[j])) / (max(atn[j])-min(atn[j]))
+        rotation = 60 * torch.tanh(self.rot_fn2(torch.concat((self.grid_fn(opponentMid[9].to(torch.float32)).sum(dim = 0).unsqueeze(dim=0),atn[0] * self.rot_fn1(output)))).sum(dim=0).squeeze().detach())
+        velocity = 0.2 * 8 * torch.tanh(self.vel_fn2(atn[1] * self.vel_fn1(output)).squeeze().detach())
+        isSneaking = self.snk(self.snk_fn2(atn[2] * self.snk_fn1(output))).squeeze().detach()
+        isSprinting = self.spt(self.spt_fn2(atn[3] * self.spt_fn1(output))).squeeze().detach()
+        attackIndex = self.atk(self.atk_fn2(atn[4] * self.atk_fn1(output))).squeeze().detach()
+        isJumping = stat[9][1] * self.jmp(self.jmp_fn2(atn[5] * self.jmp_fn1(output))).squeeze().detach()
         return rotation, velocity, isSneaking, isSprinting, attackIndex, isJumping
 
 class discriminator(nn.Module):
