@@ -1,6 +1,7 @@
 import torch
 import torch.nn as nn
 import math
+import numpy as np
 
 class EncGen(nn.Module):
     def __init__(self, dropout, device, input_size, lstm_input, hidden_size, stat_size=4, vel_size=4, oppo_size=6, num_layer = 1): #
@@ -23,29 +24,33 @@ class EncGen(nn.Module):
         self.lstm_fn = nn.Linear(input_size, lstm_input, device = device)
         self.lstm = nn.LSTM(lstm_input, hidden_size, dropout=dropout, batch_first=True, num_layers=num_layer, device=device)
 
-        self.velstatRelu = nn.ReLU()
-        self.gridRelu = nn.ReLU()
-        self.midRelu = nn.ReLU()
-        self.outRelu = nn.ReLU()
+        self.velstatRelu = nn.ReLU(inplace=False)
+        self.gridRelu = nn.ReLU(inplace=False)
+        self.midRelu = nn.ReLU(inplace=False)
+        self.outRelu = nn.ReLU(inplace=False)
     def forward(self, stat, velocity, opponentGrid, opponentMid): # stat [onhit ... ], velocity [pith, vel], opponentgrid[Area], opponentMid[coord]
-        attention = self.attentlLinVel(velocity) + self.attentLinOppo(opponentGrid)
+        attention = self.attentLinVel(velocity) + self.attentLinOppo(opponentGrid)
         attention = self.attentSoft(attention)
-        attention_stat = torch.matmul(stat, attention)
-        Feature1 = self.velstatCNN(torch.stack((attention_stat, velocity)))
+        attention_stat = stat.view([-1]).detach() * attention.view([-1]).detach()
+        attention_stat = attention_stat.view([-1, self.stat_size]).detach()
+        Feature1 = self.velstatCNN(torch.stack((attention_stat, velocity), dim = 2).unsqueeze(dim=1).detach())
         Feature1 = self.velstatRelu(Feature1)
-        Feature1 = torch.squeeze(Feature1)
-        Feature1 = torch.sum(Feature1, dim=0)
+        Feature1 = torch.squeeze(Feature1).detach()
+        Feature1 = torch.sum(Feature1, dim=2)
+        Feature1 = torch.unsqueeze(Feature1, dim= 1).detach()
         Feature2 = self.oppoGrid(opponentGrid)
         Feature2 = self.gridRelu(Feature2)
-        Feature3 = self.oppoMid(opponentMid)
+        Feature2 = torch.unsqueeze(Feature2, dim=1).detach()
+        Feature3 = self.oppoMid(opponentMid.permute(0, 2, 1).type(torch.float32))
         Feature3 = self.midRelu(Feature3)
-        Feature = torch.concat((torch.stack([Feature1], Feature2), Feature3))
-        x = self.outCNN(Feature)
+        Feature = torch.cat((Feature1, Feature2, Feature3), dim = 1)
+        x = self.outCNN(Feature.unsqueeze(dim=1).detach())
         x = self.outRelu(x)
-        x = torch.squeeze(x)
-        x = torch.sum(x, dim=0)
+        x = torch.squeeze(x).detach()
+        x = torch.sum(x, dim=2)
         x = self.lstm_fn(x)
-        output, _, _ = self.lstm(x)
+        x = x.unsqueeze(0).detach()
+        output, _ = self.lstm(x)
         return output
 class ManyToOne(nn.Module): # 
     def __init__(self, encoder, output, hidden_size, seq_len = 10):
@@ -56,7 +61,7 @@ class ManyToOne(nn.Module): #
         self.rot_fn2 = nn.Linear(hidden_size, 2, device=encoder.device)
         self.vel_fn1 = nn.Linear(output * seq_len, hidden_size, device=encoder.device)
         self.vel_sig = nn.Sigmoid()
-        self.vel_fn2 = nn.Linear(hidden_size, 3, device=encoder.device)
+        self.vel_fn2 = nn.Linear(hidden_size, 2, device=encoder.device)
         self.snk_fn1 = nn.Linear(output * seq_len, hidden_size, device=encoder.device)
         self.snk_fn2 = nn.Linear(hidden_size, 1, device=encoder.device)
         self.snk = nn.Sigmoid()
@@ -67,15 +72,19 @@ class ManyToOne(nn.Module): #
         self.atk_fn2 = nn.Linear(hidden_size, 1, device=encoder.device)
         self.atk = nn.Sigmoid()
 
+        self.jmp = nn.Sigmoid()
+        self.jmp_fn1 = nn.Linear(output * seq_len, hidden_size, device=encoder.device)
+        self.jmp_fn2 = nn.Linear(hidden_size, 1, device=encoder.device)
     def forward(self, stat, vel, opponentGrid, opponentMid):
         output = self.enc(stat, vel, opponentGrid, opponentMid)
         output = output.reshape(output.shape[0], -1)
-        rotation = self.rot_fn2(self.rot_sig(self.rot_fn1(output)))
-        velocity = self.vel_fn2(self.vel_sig(self.vel_fn1(output)))
-        isSneaking = self.snk(self.snk_fn2(self.snk_fn1(output)))
-        isSprinting = self.spt(self.spt_fn2(self.spt_fn1(output)))
-        attackIndex = self.atk(self.atk_fn2(self.atk_fn1(output)))
-        return rotation, velocity, isSneaking, isSprinting, attackIndex
+        rotation = 120 * torch.tanh(self.rot_fn2(self.rot_fn1(output)).squeeze().detach())
+        velocity = 0.2 * 8 * torch.tanh(self.vel_fn2(self.vel_fn1(output)).squeeze().detach())
+        isSneaking = self.snk(self.snk_fn2(self.snk_fn1(output))).squeeze().detach()
+        isSprinting = self.spt(self.spt_fn2(self.spt_fn1(output))).squeeze().detach()
+        attackIndex = self.atk(self.atk_fn2(self.atk_fn1(output))).squeeze().detach()
+        isJumping = stat[9][1] * self.jmp(self.jmp_fn2(self.jmp_fn1(output))).squeeze().detach()
+        return rotation, velocity, isSneaking, isSprinting, attackIndex, isJumping
 
 class discriminator(nn.Module):
     def __init__(self, dropout, device, input_size, lstm_input, hidden_size, out_hidden, stat_size=4, vel_size=4, num_layer = 1, seq_len=10):
@@ -93,28 +102,30 @@ class discriminator(nn.Module):
         self.outCNN = nn.Conv2d(1, input_size, 4, stride=1, device=device)
         self.lstm_fn = nn.Linear(input_size, lstm_input, device=device)
         self.lstm = nn.LSTM(lstm_input, hidden_size, dropout=dropout, batch_first=True, num_layers=num_layer, device=device)
-        self.velstatRelu = nn.ReLU()
-        self.outRelu = nn.ReLU()
+        self.velstatRelu = nn.ReLU(inplace=False)
+        self.outRelu = nn.ReLU(inplace=False)
 
         self.out_fn = nn.Linear(hidden_size * seq_len, out_hidden, device=device)
         self.out_fn2 = nn.Linear(out_hidden, 1, device=device)
         self.outSig = nn.Sigmoid()
-    def forward(self, stat, velocity, opponentGrid, opponentMid):
-        attention = self.attentlLinVel(velocity)
+    def forward(self, stat, velocity):
+        attention = self.attentLinVel(velocity)
         attention = self.attentSoft(attention)
-        attention_stat = torch.matmul(stat, attention)
-        Feature1 = self.velstatCNN(torch.stack((attention_stat, velocity)))
+        attention_stat = stat.view([-1]).detach() * attention.view([-1]).detach()
+        attention_stat = attention_stat.view([-1, self.stat_size])
+        Feature1 = self.velstatCNN(torch.stack((attention_stat, velocity), dim = 2).unsqueeze(dim=1).detach())
         Feature1 = self.velstatRelu(Feature1)
-        Feature1 = torch.squeeze(Feature1)
-        Feature = torch.sum(Feature1, dim=0)
-        x = self.outCNN(Feature)
-        x = self.outRelu(x)
-        x = torch.squeeze(x)
-        x = torch.sum(x, dim=0)
-        x = self.lstm_fn(x)
-        output, _, _ = self.lstm(x)
+        Feature1 = torch.squeeze(Feature1).detach()
+        Feature = torch.sum(Feature1, dim=2)
+        #x = self.outCNN(Feature.unsqueeze())
+        #x = self.outRelu(x)
+        #x = torch.squeeze(x)
+        #x = torch.sum(x, dim=0)
+        x = self.lstm_fn(Feature).unsqueeze(dim=0).detach()
+        output, _ = self.lstm(x)
         output = output.reshape(output.shape[0], -1)
         output = self.outSig(self.out_fn2(self.out_fn(output)))
+        output = output.squeeze(dim = 0).detach()
         return output
 
 

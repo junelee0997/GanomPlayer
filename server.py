@@ -6,19 +6,24 @@ IP = '127.0.0.1'
 PORT = 25566
 SIZE = 4096
 
-
+def send(msg, client_socket):
+    #print(msg)
+    recv = json.dumps(msg) + '\n'
+    client_socket.send(recv.encode("utf-8"))
 def loop(activate, activate2):
     server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     server_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
     server_socket.bind((IP, PORT))
     server_socket.listen()
     print(f"Server start in {IP}")
-
+    cnt = 0
     while True:
         ch = 1
-        #print("Ready to accept")
+        print("Ready to accept")
         client_socket, client_addr = server_socket.accept()
-        # client_socket.send("start\n".encode("utf-8"))
+        print("accepted")
+        # client_socket.send("start\n".encode("utf-8"))# 이거 없으면 무한 대기 걸릴까?
+        print("sended")
         while True:
             s = time.time()
             try:
@@ -26,19 +31,23 @@ def loop(activate, activate2):
             except ConnectionAbortedError:
                 print("Connection Aborted")
                 break
-            print("msg:", msg)
+            #print("msg:", msg)
             s2 = time.time()
             if not msg:
                 continue
             if msg == b'-1':
                 client_socket.send("Train pended\n".encode())
                 print("Client pended the connection")
+                ch = 0
                 break
             try:
                 #s3 = time.time()
                 msg = json.loads(msg.decode("utf-8"))
-                recv = json.dumps(activate(msg)) + '\n'
-                client_socket.send(recv.encode("utf-8"))
+                if cnt == 50:
+                    activate2()
+                    cnt = -1
+                cnt+=1
+                activate(msg, client_socket)
                 #s4 = time.time()
             except json.decoder.JSONDecodeError:
                 print("parsing failed")
@@ -46,7 +55,7 @@ def loop(activate, activate2):
             t2 = time.time() - s2
             print(f'Time elapsed: {t1 + t2:.3f}', )
             # print("check")
-        #activate2()
+        activate2()
         if not ch:
             break
 
