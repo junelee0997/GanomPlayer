@@ -20,7 +20,7 @@ time = 1
 disc_path = './model/disc'
 gen_path = './model/gen'
 
-learning_rate = 0.00005
+learning_rate = 0.01
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
 criterion = nn.BCELoss().to(device)

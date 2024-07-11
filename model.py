@@ -52,6 +52,7 @@ class EncGen(nn.Module):
         x = x.unsqueeze(0).detach()
         output, _ = self.lstm(x)
         return output
+
 class ManyToOne(nn.Module): # 
     def __init__(self, encoder, output, hidden_size, seq_len = 10):
         super().__init__()
@@ -75,10 +76,12 @@ class ManyToOne(nn.Module): #
         self.jmp = nn.Sigmoid()
         self.jmp_fn1 = nn.Linear(output * seq_len, hidden_size, device=encoder.device)
         self.jmp_fn2 = nn.Linear(hidden_size, 1, device=encoder.device)
+
+        self.grid_fn = nn.Linear(2, hidden_size, device=encoder.device)
     def forward(self, stat, vel, opponentGrid, opponentMid):
         output = self.enc(stat, vel, opponentGrid, opponentMid)
         output = output.reshape(output.shape[0], -1)
-        rotation = 120 * torch.tanh(self.rot_fn2(self.rot_fn1(output)).squeeze().detach())
+        rotation = 60 * torch.tanh(self.rot_fn2(torch.concat((self.grid_fn(opponentMid[9].to(torch.float32)).sum(dim = 0).unsqueeze(dim=0),self.rot_fn1(output)))).sum(dim=0).squeeze().detach())
         velocity = 0.2 * 8 * torch.tanh(self.vel_fn2(self.vel_fn1(output)).squeeze().detach())
         isSneaking = self.snk(self.snk_fn2(self.snk_fn1(output))).squeeze().detach()
         isSprinting = self.spt(self.spt_fn2(self.spt_fn1(output))).squeeze().detach()
