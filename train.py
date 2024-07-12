@@ -8,6 +8,10 @@ import server
 import numpy
 import pygetwindow as gw
 import matplotlib as plt
+import pandas as pd
+
+whole_g_loss = []
+whole_d_loss = []
 
 dropout = 0
 player_count = 1
@@ -20,6 +24,7 @@ DiscStep = 0
 time = 1
 disc_path = './model/disc'
 gen_path = './model/gen'
+loss_path = './model/loss'
 
 learning_rate = 0.01
 device = torch.device('cpu') #'cuda' if torch.cuda.is_available() else 'cpu')
@@ -34,6 +39,11 @@ if 'generator.pt' in os.listdir(gen_path):
 discriminator = model.discriminator(dropout, device, inputsize, lstmin, hidden, detecthid)
 if 'discriminator.pt' in os.listdir(disc_path):
     discriminator.load_state_dict(torch.load(disc_path + '/discriminator.pt'))
+
+if 'loss.csv' in os.listdir(loss_path):
+    data = pd.read_csv(loss_path + '/loss.csv')
+    whole_g_loss = data['Generator Loss']
+    whole_d_loss = data['Discriminator Loss']
 
 d_optimizer = torch.optim.Adam(discriminator.parameters(), lr=learning_rate)
 g_optimizer = torch.optim.Adam(generator.parameters(), lr=learning_rate)
@@ -85,7 +95,7 @@ def generate(msg, client_socket):
     server.send({"rotation" : gen[0].tolist(), "velocity" : [gen[1][0].item(), float(gen[5] >= 0.5), gen[1][1].item()], "isSneaking" : gen[2].item() >= 0.5, "isSprinting" : gen[3].item() >= 0.5, "attackIndex" : (int(gen[4] >= 0.5) - 1)}, client_socket)
 
     g_loss = criterion(discriminator(stat.detach(), resvel.detach()), torch.tensor([0], device=device).to(torch.float32).requires_grad_(True))
-
+    whole_g_loss.append(g_loss.item())
     stat = stat[1:]
     resvel = resvel[1:]
 
@@ -94,6 +104,7 @@ def generate(msg, client_socket):
         for i in range(player_count):
             r_loss += criterion(discriminator(plstat[i].detach(), plvel[i].detach()), torch.tensor([1], device=device).to(torch.float32).requires_grad_(True))
         d_loss = (g_loss + r_loss) / (1 + player_count)
+        whole_d_loss.append(d_loss.item())
         d_loss.backward(retain_graph=True)
         d_optimizer.step()
         DiscStep = 0
@@ -106,6 +117,9 @@ def generate(msg, client_socket):
     g_optimizer.step()
 
 def save():
+    data = {'Generator Loss':whole_g_loss, 'Discriminator Loss': whole_d_loss}
+    df = pd.DataFrame(data=data)
+    df.to_csv(loss_path + '/loss.csv', index=True)
     torch.save(discriminator.state_dict(), disc_path + '/discriminator.pt')
     torch.save(generator.state_dict(), gen_path + '/generator.pt')
 
