@@ -3,12 +3,10 @@ import torch.nn as nn
 import model
 import os
 import pyautogui
-import BodyDetect
 import server
-import numpy
 import pygetwindow as gw
-import matplotlib as plt
 import pandas as pd
+import cv2
 
 whole_g_loss = []
 whole_d_loss = []
@@ -21,22 +19,21 @@ hidden = 1024
 outhidden = 512
 detecthid = 512
 DiscStep = 0
-time = 2
+time = 10
 disc_path = './model/disc'
 gen_path = './model/gen'
 loss_path = './model/loss'
 
-learning_rate = 0.01
+learning_rate = 0.001
 device = torch.device('cpu') #'cuda' if torch.cuda.is_available() else 'cpu')
 
 criterion = nn.BCELoss().to(device)
-EncGen = model.EncGen(dropout, device, inputsize, lstmin, hidden)
-generator = model.ManyToOne(EncGen, hidden, outhidden).to(device)
+generator = model.Generator(device).to(device)
 
 if 'generator.pt' in os.listdir(gen_path):
     generator.load_state_dict(torch.load(gen_path + '/generator.pt'))
 
-discriminator = model.discriminator(dropout, device, inputsize, lstmin, hidden, detecthid)
+discriminator = model.Discriminator(device).to(device)
 if 'discriminator.pt' in os.listdir(disc_path):
     discriminator.load_state_dict(torch.load(disc_path + '/discriminator.pt'))
 
@@ -49,30 +46,15 @@ if 'gloss.csv' in os.listdir(loss_path):
 d_optimizer = torch.optim.Adam(discriminator.parameters(), lr=learning_rate)
 g_optimizer = torch.optim.Adam(generator.parameters(), lr=learning_rate)
 
-stat = torch.zeros((9, 4), device=device)
-vel = torch.zeros((9, 4), device=device)
-oppopos = torch.zeros((9, 6, 2), device=device)
-oppogrid = torch.zeros((9, 6), device=device)
+user_history = [torch.zeros((1, 9, 12)) for i in range(player_count)]
+bot_history = torch.zeros((1, 9, 12))
 
-plstat = [torch.zeros((9, 4), device=device) for i in range(player_count)]
-plvel = [torch.zeros((9, 4), device=device) for i in range(player_count)]
-
-resvel = torch.zeros((9, 4), device=device)
-
-stat.requires_grad_(True)
-vel.requires_grad_(True)
-oppogrid.requires_grad_(True)
-oppopos.requires_grad_(True)
+user_img = [torch.zeros((1, 9, 140, 140, 3)) for i in range(player_count)]
+bot_img = torch.zeros((1, 9, 140, 140, 3))
 def generate(msg, client_socket):
-    global stat, vel, plstat, plvel, resvel, oppopos, oppogrid, DiscStep, g_optimizer, d_optimizer
+    global DiscStep, g_optimizer, d_optimizer
 
     #g_optimizer.zero_grad()
-    stat = torch.cat((stat, torch.tensor([[msg['ai']['isOnDamage'], msg['ai']['isOnGround'], msg['ai']['isSneaking'], msg['ai']['isSprinting']]], device=device)))
-    vel = torch.cat((vel, torch.tensor([[msg['ai']['pitch'], *msg['ai']['velocity']]], device=device)))
-    for i in range(player_count):
-        plstat[i] = torch.cat((plstat[i], torch.tensor(
-            [[msg['players'][i]['isOnDamage'], msg['players'][i]['isOnGround'], msg['players'][i]['isSneaking'], msg['players'][i]['isSprinting']]], device=device)))
-        plvel[i] = torch.cat((plvel[i], torch.tensor([[msg['players'][i]['pitch'], *msg['players'][i]['velocity']]], device=device)))
 
     DiscStep += 1
     if DiscStep == time:
@@ -80,29 +62,25 @@ def generate(msg, client_socket):
     else:
         g_optimizer.zero_grad()
 
-    window = gw.getWindowsWithTitle("Minecraft 1.8.9")[0]
+    window = gw.getWindowsWithTitle("Minecraft 1.8.9")[0] #bot
     img = pyautogui.screenshot(r'C:\Users\Administrator\Desktop\GanomPlayer\model\test.png',
                                region=(window.left, window.top, window.width, window.height))
-    pos, grid = BodyDetect.detection(numpy.array(img))
-    oppopos = torch.cat((oppopos, torch.tensor([pos], device=device)))
-    oppogrid = torch.cat((oppogrid, torch.tensor([grid], device=device)))
+    img = torch.tensor(img).unsqueeze(dim = 0).detach()
+    img = cv2.resize(img, (140, 140))
+    window = gw.getWindowsWithTitle("Minecraft 1.8.8")[0]  # bot
+    img2 = pyautogui.screenshot(r'C:\Users\Administrator\Desktop\GanomPlayer\model\test.png',
+                               region=(window.left, window.top, window.width, window.height))
+    img2 = torch.tensor(img2).unsqueeze(dim=0).detach()
+    img2 = cv2.resize(img2, (140, 140))
 
+    #img, move1, move2, jmp, run, crh, del_yaw, del_pitch
+    data = [torch.tensor(msg['ai']['WSmove']).unsqueeze(dim=0).detach(), torch.tensor(msg['ai']['ADmove']).unsqueeze(dim=0).detach(), torch.tensor(msg['ai']['Space']).unsqueeze(dim=0).detach(), torch.tensor(msg['ai']['Ctrl']).unsqueeze(dim=0).detach(), torch.tensor(msg['ai']['Shift']).unsqueeze(dim=0).detach(),torch.tensor(msg['ai']['DelYaw']).unsqueeze(dim=0).detach(), torch.tensor(msg['ai']['DelPitch']).unsqueeze(dim=0).detach(),torch.tensor(msg['ai']['Attack']).unsqueeze(dim=0).detach()]
+    gen = generator(img, data[0], data[1], data[2], data[3], data[4], data[5], data[6])
 
-    gen = generator(stat, vel, oppogrid, oppopos)
+    server.send({"WDmove" : gen[0].item(), "ADmove" : gen[1].item(), "Space" : gen[2].item() >= 0.5, "Ctrl" : gen[3].item() >= 0.5, "Shift" : gen[4].item() >= 0.5, "DelYaw" : gen[5].item(), "DelPitch" : gen[6].item(), "Attack" : gen[7].item() >= 0.5}, client_socket)
+    #Gen = discriminator(stat.detach(), resvel.detach())
 
-    vel = vel[1:]
-
-    oppopos = oppopos[1:]
-    oppogrid = oppogrid[1:]
-    resvel = torch.cat((resvel,torch.cat((torch.tensor([gen[0][1]], device=device), torch.tensor([gen[1][0].item(), float(gen[5] >= 0.5), gen[1][1].item()], device=device))).unsqueeze(dim = 0))) # y속도 0
-    server.send({"rotation" : gen[0].tolist(), "velocity" : [gen[1][0].item(), float(gen[5] >= 0.5), gen[1][1].item()], "isSneaking" : gen[2].item() >= 0.5, "isSprinting" : gen[3].item() >= 0.5, "attackIndex" : (int(gen[4] >= 0.5) - 1)}, client_socket)
-    Gen = discriminator(stat.detach(), resvel.detach())
-    #g_loss = criterion(Gen, torch.tensor([1], device=device).to(torch.float32).requires_grad_(True))
-    #whole_g_loss.append(g_loss.item())
-    stat = stat[1:]
-    resvel = resvel[1:]
-
-    if DiscStep == time:
+    '''if DiscStep == time:
         f_loss = criterion(Gen, torch.tensor([0], device=device).to(torch.float32).requires_grad_(True))
         r_loss = 0
         for i in range(player_count):
@@ -118,9 +96,7 @@ def generate(msg, client_socket):
         whole_g_loss.append(g_loss.item())
         g_loss.backward(retain_graph=True)
         g_optimizer.step()
-        print("g_loss", g_loss)
-    plstat = [plstat[i][1:] for i in range(player_count)]
-    plvel = [plvel[i][1:] for i in range(player_count)]
+        print("g_loss", g_loss)'''
 
     #g_loss.backward(retain_graph=True)
     #g_optimizer.step()
