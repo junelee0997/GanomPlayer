@@ -77,7 +77,7 @@ def generate(msg, client_socket):
     data = [torch.tensor(msg['ai']['WSmove']).unsqueeze(dim=0).detach(), torch.tensor(msg['ai']['ADmove']).unsqueeze(dim=0).detach(), torch.tensor(msg['ai']['Space']).unsqueeze(dim=0).detach(), torch.tensor(msg['ai']['Ctrl']).unsqueeze(dim=0).detach(), torch.tensor(msg['ai']['Shift']).unsqueeze(dim=0).detach(),torch.tensor(msg['ai']['DelYaw']).unsqueeze(dim=0).detach(), torch.tensor(msg['ai']['DelPitch']).unsqueeze(dim=0).detach(),torch.tensor(msg['ai']['Attack']).unsqueeze(dim=0).detach()]
     gen = generator(img, data[0], data[1], data[2], data[3], data[4], data[5], data[6])
 
-    server.send({"WDmove" : gen[0].item(), "ADmove" : gen[1].item(), "Space" : gen[2].item() >= 0.5, "Ctrl" : gen[3].item() >= 0.5, "Shift" : gen[4].item() >= 0.5, "DelYaw" : gen[5].item(), "DelPitch" : gen[6].item(), "Attack" : gen[7].item() >= 0.5}, client_socket)
+    server.send({"WSmove" : gen[0].item(), "ADmove" : gen[1].item(), "Space" : gen[2].item() >= 0.5, "Ctrl" : gen[3].item() >= 0.5, "Shift" : gen[4].item() >= 0.5, "DelYaw" : gen[5].item(), "DelPitch" : gen[6].item(), "Attack" : gen[7].item() >= 0.5}, client_socket)
     #Gen = discriminator(stat.detach(), resvel.detach())
 
     '''if DiscStep == time:
