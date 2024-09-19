@@ -23,7 +23,6 @@ def loop(activate, activate2):
         client_socket, client_addr = server_socket.accept()
         print("accepted")
         # client_socket.send("start\n".encode("utf-8"))# 이거 없으면 무한 대기 걸릴까?
-        print("sended")
         while True:
             s = time.time()
             try:
