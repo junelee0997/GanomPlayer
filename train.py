@@ -52,8 +52,8 @@ bot_history = torch.zeros((1, 9, 12), device=device)
 
 user_img = [torch.zeros((1, 9, 3, 140, 140), device=device) for i in range(player_count)]
 bot_img = torch.zeros((1, 9, 3, 140, 140), device=device)
-user_stat = [[torch.zeros((1, 9, 3), device=device), torch.zeros((1, 9, 3), device=device), torch.zeros((1, 9, 1), device=device), torch.zeros((1, 9, 1), device=device), torch.zeros((1, 9, 1), device=device), torch.zeros((1, 9, 1), device=device), torch.zeros((1, 9, 1), device=device), torch.zeros((1, 9, 1), device=device)] for i in range(player_count)]
-bot_stat = [torch.zeros((1, 9, 3), device=device), torch.zeros((1, 9, 3), device=device), torch.zeros((1, 9, 1), device=device), torch.zeros((1, 9, 1), device=device), torch.zeros((1, 9, 1), device=device), torch.zeros((1, 9, 1), device=device), torch.zeros((1, 9, 1), device=device), torch.zeros((1, 9, 1), device=device)]
+user_stat = [[torch.zeros((1, 9, 3), device=device), torch.zeros((1, 9, 3), device=device), torch.zeros((1, 9, 1), device=device), torch.zeros((1, 9, 1), device=device), torch.zeros((1, 9, 1), device=device), torch.zeros((1, 9, 1), device=device), torch.zeros((1, 9, 1), device=device), torch.zeros((1, 9, 1), device=device), torch.zeros((1, 9, 1), device=device)] for i in range(player_count)]
+bot_stat = [torch.zeros((1, 9, 3), device=device), torch.zeros((1, 9, 3), device=device), torch.zeros((1, 9, 1), device=device), torch.zeros((1, 9, 1), device=device), torch.zeros((1, 9, 1), device=device), torch.zeros((1, 9, 1), device=device), torch.zeros((1, 9, 1), device=device), torch.zeros((1, 9, 1), device=device), torch.zeros((1, 9, 1), device=device)]
 def generate(msg, client_socket):
     global DiscStep, g_optimizer, d_optimizer, bot_img, user_img, player_count, bot_stat, user_stat
     DiscStep += 1
@@ -87,25 +87,27 @@ def generate(msg, client_socket):
         plWS[i][msg['players'][i]['WSmove'] + 1] = 1
         plAD.append([0, 0, 0])
         plAD[i][msg['players'][i]['ADmove'] + 1] = 1
-    data2 = [[torch.Tensor(plWS[i]).to(device).unsqueeze(dim=0).detach(), torch.Tensor(plAD[i]).to(device).unsqueeze(dim=0).detach(), torch.tensor(msg['players'][i]['Space'], device=device).unsqueeze(dim=0).unsqueeze(dim=0).detach(), torch.tensor(msg['players'][i]['Ctrl'], device=device).unsqueeze(dim=0).unsqueeze(dim=0).detach(), torch.tensor(msg['players'][i]['Shift'], device=device).unsqueeze(dim=0).unsqueeze(dim=0).detach(),torch.tensor(msg['players'][i]['DelYaw'], device=device).unsqueeze(dim=0).unsqueeze(dim=0).detach(), torch.tensor(msg['players'][i]['DelPitch'], device=device).unsqueeze(dim=0).unsqueeze(dim=0).detach(),torch.tensor(msg['players'][i]['Attack'] + 1, device=device).unsqueeze(dim=0).unsqueeze(dim=0).detach()] for i in range(player_count)]
-    data = [torch.tensor(msg['ai']['WSmove'], device=device).unsqueeze(dim=0).unsqueeze(dim=0).detach(), torch.tensor(msg['ai']['ADmove'], device=device).unsqueeze(dim=0).unsqueeze(dim=0).detach(), torch.tensor(msg['ai']['Space'], device=device).unsqueeze(dim=0).unsqueeze(dim=0).detach(), torch.tensor(msg['ai']['Ctrl'], device=device).unsqueeze(dim=0).unsqueeze(dim=0).detach(), torch.tensor(msg['ai']['Shift'], device=device).unsqueeze(dim=0).unsqueeze(dim=0).detach(),torch.tensor(msg['ai']['DelYaw'], device=device).unsqueeze(dim=0).unsqueeze(dim=0).detach(), torch.tensor(msg['ai']['DelPitch'], device=device).unsqueeze(dim=0).unsqueeze(dim=0).detach(),torch.tensor(msg['ai']['Attack'] + 1, device=device).unsqueeze(dim=0).unsqueeze(dim=0).detach()]
-    gen = generator(img.squeeze(dim=0), data[0], data[1], data[2], data[3], data[4], data[5], data[6])
+    data2 = [[torch.Tensor(plWS[i]).to(device).unsqueeze(dim=0).detach(), torch.Tensor(plAD[i]).to(device).unsqueeze(dim=0).detach(), torch.tensor(msg['players'][i]['Space'], device=device).unsqueeze(dim=0).unsqueeze(dim=0).detach(), torch.tensor(msg['players'][i]['Ctrl'], device=device).unsqueeze(dim=0).unsqueeze(dim=0).detach(), torch.tensor(msg['players'][i]['Shift'], device=device).unsqueeze(dim=0).unsqueeze(dim=0).detach(),torch.tensor(msg['players'][i]['DelYaw'], device=device).unsqueeze(dim=0).unsqueeze(dim=0).detach(), torch.tensor(msg['players'][i]['DelPitch'], device=device).unsqueeze(dim=0).unsqueeze(dim=0).detach(),torch.tensor(msg['players'][i]['Attack'] + 1, device=device).unsqueeze(dim=0).unsqueeze(dim=0).detach(), torch.tensor(msg['players'][i]['Pitch'], device=device).unsqueeze(dim=0).unsqueeze(dim=0).detach()] for i in range(player_count)]
+    data = [torch.tensor(msg['ai']['WSmove'], device=device).unsqueeze(dim=0).unsqueeze(dim=0).detach(), torch.tensor(msg['ai']['ADmove'], device=device).unsqueeze(dim=0).unsqueeze(dim=0).detach(), torch.tensor(msg['ai']['Space'], device=device).unsqueeze(dim=0).unsqueeze(dim=0).detach(), torch.tensor(msg['ai']['Ctrl'], device=device).unsqueeze(dim=0).unsqueeze(dim=0).detach(), torch.tensor(msg['ai']['Shift'], device=device).unsqueeze(dim=0).unsqueeze(dim=0).detach(),torch.tensor(msg['ai']['DelYaw'], device=device).unsqueeze(dim=0).unsqueeze(dim=0).detach(), torch.tensor(msg['ai']['DelPitch'], device=device).unsqueeze(dim=0).unsqueeze(dim=0).detach(), torch.tensor(msg['ai']['Pitch'], device=device).unsqueeze(dim=0).unsqueeze(dim=0).detach(), torch.tensor(msg['ai']['Attack'] + 1, device=device).unsqueeze(dim=0).unsqueeze(dim=0).detach()]
+    gen = generator(img.squeeze(dim=0), data[0], data[1], data[2], data[3], data[4], data[5], data[6], data[7])
     for i in range(8):
         bot_stat[i] = torch.cat((bot_stat[i], gen[i].unsqueeze(dim=0).detach()), dim=1)
+    bot_stat[8] = torch.cat((bot_stat[8], data[7].unsqueeze(dim=0).detach()), dim=1)
     for i in range(player_count):
         for j in range(8):
             user_stat[i][j] = torch.cat((user_stat[i][j], data2[i][j].unsqueeze(dim = 0).detach()), dim = 1)
+        user_stat[i][8] = torch.cat((user_stat[i][8], data2[i][8].unsqueeze(dim=0).detach()), dim=1)
     WS = gen[0][0].tolist().index(max(list(gen[0][0].tolist()))) - 1
     AD = gen[1][0].tolist().index(max(list(gen[1][0].tolist()))) - 1
     if(DiscStep == 2): print({"WSmove" : [gen[0].tolist(), WS], "ADmove" : [gen[1].tolist(), AD], "Space" : gen[2].item(), "Ctrl" : gen[3].item(), "Shift" : gen[4].item(), "DelYaw" : gen[5].item(), "DelPitch" : gen[6].item(), "Attack" : gen[7].item()})
     server.send({"WSmove" : WS, "ADmove" : AD, "Space" : gen[2].item() >= 0.5, "Ctrl" : gen[3].item() >= 0.5, "Shift" : gen[4].item() >= 0.5, "DelYaw" : gen[5].item(), "DelPitch" : gen[6].item(), "Attack" : int(gen[7].item() >= 0.5) - 1}, client_socket)
-    Gen = discriminator(bot_img.squeeze(dim=0), bot_stat[0], bot_stat[1], bot_stat[2], bot_stat[3], bot_stat[4], bot_stat[5], bot_stat[6], bot_stat[7])
+    Gen = discriminator(bot_img.squeeze(dim=0), bot_stat[0], bot_stat[1], bot_stat[2], bot_stat[3], bot_stat[4], bot_stat[5], bot_stat[6], bot_stat[8], bot_stat[7])
     
     if DiscStep == time:
         f_loss = criterion(Gen, torch.tensor([0], device=device).to(torch.float32).requires_grad_(True))
         r_loss = 0
         for i in range(player_count):
-            r_loss += criterion(discriminator(user_img[i].squeeze(dim=0), user_stat[i][0], user_stat[i][1], user_stat[i][2], user_stat[i][3], user_stat[i][4], user_stat[i][5], user_stat[i][6], user_stat[i][7]), torch.tensor([1], device=device).to(torch.float32).requires_grad_(True))
+            r_loss += criterion(discriminator(user_img[i].squeeze(dim=0), user_stat[i][0], user_stat[i][1], user_stat[i][2], user_stat[i][3], user_stat[i][4], user_stat[i][5], user_stat[i][6], user_stat[i][8], user_stat[i][7]), torch.tensor([1], device=device).to(torch.float32).requires_grad_(True))
         d_loss = (f_loss + r_loss) / (1 + player_count)
         whole_d_loss.append(d_loss.item())
         d_loss.backward(retain_graph=True)
@@ -120,11 +122,11 @@ def generate(msg, client_socket):
         #print("g_loss", g_loss)
 
     for i in range(player_count):
-        for j in range(8):
+        for j in range(9):
             user_stat[i][j] = user_stat[i][j][:, 1:]
         user_img[i] = user_img[i][:, 1:]
     bot_img = bot_img[:, 1:]
-    for i in range(8):
+    for i in range(9):
         bot_stat[i] = bot_stat[i][:, 1:]
     #g_loss.backward(retain_graph=True)
     #g_optimizer.step()

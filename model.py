@@ -4,7 +4,7 @@ import math
 import numpy as np
 
 class Generator(nn.Module):
-    def __init__(self, device, output_size=12, input_size=7):
+    def __init__(self, device, output_size=12, input_size=8):
         super().__init__()
         self.device = device
         self.image_layer = nn.Sequential(
@@ -45,12 +45,12 @@ class Generator(nn.Module):
         self.shift = nn.Sigmoid()
         self.ctrl = nn.Sigmoid()
         self.atk = nn.Sigmoid()
-    def forward(self, img, move1, move2, jmp, run, crh, del_yaw, del_pitch): # data shape : [1, ~]
+    def forward(self, img, move1, move2, jmp, run, crh, del_yaw, del_pitch, pitch): # data shape : [1, ~]
         data = self.image_layer(img)
         data = torch.reshape(data, (-1, 32 * 14 * 14))
         data = self.fc1_image(data)
 
-        action = torch.cat([move1, move2, jmp, run, crh, del_yaw, del_pitch], dim=1)
+        action = torch.cat([move1, move2, jmp, run, crh, del_yaw, del_pitch, pitch], dim=1)
         data2 = self.fc1(action)
 
         z = torch.randn(1, 32, device=self.device)
@@ -72,7 +72,7 @@ class Generator(nn.Module):
 
         return move1, move2, jmp, run, crh, del_yaw, del_pitch, atkind
 class Discriminator(nn.Module):
-    def __init__(self, device, input_size=12, output_size=1):
+    def __init__(self, device, input_size=13, output_size=1):
         super().__init__()
         self.device = device
         self.image_layer = nn.Sequential(
@@ -104,11 +104,11 @@ class Discriminator(nn.Module):
         self.fc3 = nn.Linear(128, 1, device=device)
         self.outsig = nn.Sigmoid()
 
-    def forward(self, img, move1, move2, jmp, run, crh, del_yaw, del_pitch, atkind): # data shape : [1, 10, ~]
+    def forward(self, img, move1, move2, jmp, run, crh, del_yaw, del_pitch, pitch, atkind): # data shape : [1, 10, ~]
         data = self.image_layer(img)
         data = torch.reshape(data, (1, 10, -1))
 
-        act = torch.cat([move1, move2, jmp * 3, run * 3, crh * 3, del_yaw * 3, del_pitch, atkind], dim=2)
+        act = torch.cat([move1, move2, jmp * 3, run * 3, crh * 3, del_yaw * 3, del_pitch, pitch,  atkind], dim=2)
         act = self.fc1(act)
 
         x = torch.cat([data, act], dim=2)
