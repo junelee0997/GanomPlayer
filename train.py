@@ -12,7 +12,7 @@ import cv2
 whole_g_loss = []
 whole_d_loss = []
 
-time_length = 10
+time_length = 20
 dropout = 0
 player_count = 1
 inputsize = 32
@@ -21,12 +21,12 @@ hidden = 1024
 outhidden = 512
 detecthid = 512
 DiscStep = 0
-time = 5
+time = 4
 disc_path = './model/disc'
 gen_path = './model/gen'
 loss_path = './model/loss'
 
-learning_rate = 0.01
+learning_rate = 0.0001
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
 criterion = nn.BCELoss().to(device)
@@ -45,8 +45,8 @@ if 'gloss.csv' in os.listdir(loss_path):
     whole_g_loss = list(data['Generator Loss'])
     whole_d_loss = list(data2['Discriminator Loss'])
 
-d_optimizer = torch.optim.Adam(discriminator.parameters(), lr=learning_rate)
-g_optimizer = torch.optim.Adam(generator.parameters(), lr=learning_rate)
+d_optimizer = torch.optim.Adam(discriminator.parameters(), lr=learning_rate, weight_decay=1e-2)
+g_optimizer = torch.optim.Adam(generator.parameters(), lr=learning_rate,weight_decay=1e-2)
 
 user_history = [torch.zeros((1, 9, 12), device=device) for i in range(player_count)]
 bot_history = torch.zeros((1, 9, 12), device=device)
@@ -114,13 +114,13 @@ def generate(msg, client_socket):
         d_loss.backward(retain_graph=True)
         d_optimizer.step()
         DiscStep = 0
-        #print("d_loss", d_loss)
+        print("d_loss", d_loss)
     else:
         g_loss = criterion(Gen, torch.tensor([1], device=device).to(torch.float32).requires_grad_(True))
         whole_g_loss.append(g_loss.item())
         g_loss.backward(retain_graph=True)
         g_optimizer.step()
-        #print("g_loss", g_loss)
+        print("g_loss", g_loss)
 
     for i in range(player_count):
         for j in range(9):

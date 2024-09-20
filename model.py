@@ -10,17 +10,17 @@ class Generator(nn.Module):
         self.image_layer = nn.Sequential(
             # [100,3,140,140] -> [100,8,136,136]
             nn.Conv2d(in_channels=3, out_channels=8, kernel_size=5, device=device),
-            nn.ReLU(),
+            nn.LeakyReLU(),
             nn.MaxPool2d(2),
 
             # [100,8,68,68] -> [100,16,64,64]
             nn.Conv2d(in_channels=8, out_channels=16, kernel_size=5, device=device),
-            nn.ReLU(),
+            nn.LeakyReLU(),
             nn.MaxPool2d(2),
 
             # [100,16,32,32] -> [100,32,28,28]
             nn.Conv2d(in_channels=16, out_channels=32, kernel_size=5, device=device),
-            nn.ReLU(),
+            nn.LeakyReLU(),
             nn.MaxPool2d(2),
             # [100,32,28,28] -> [100,32,14,14]
         )
@@ -80,17 +80,20 @@ class Discriminator(nn.Module):
         self.image_layer = nn.Sequential(
             # [1, 10,3,140,140] -> [1, 10,8,136,136]
             nn.Conv2d(in_channels=3, out_channels=8, kernel_size=5, device=device),
-            nn.ReLU(),
+            nn.LeakyReLU(),
+            nn.Dropout(p=0.5),
             nn.MaxPool2d(2),
 
             # [1, 10,8,68,68] -> [1, 10,16,64,64]
             nn.Conv2d(in_channels=8, out_channels=16, kernel_size=5, device=device),
-            nn.ReLU(),
+            nn.LeakyReLU(),
+            nn.Dropout(p=0.5),
             nn.MaxPool2d(2),
 
             # [10,16,32,32] -> [10,32,28,28]
             nn.Conv2d(in_channels=16, out_channels=32, kernel_size=5, device=device),
-            nn.ReLU(),
+            nn.LeakyReLU(),
+            nn.Dropout(p=0.5),
             nn.MaxPool2d(2),
             # [10,32,28,28] -> [10,32,14,14]
         )
@@ -98,12 +101,12 @@ class Discriminator(nn.Module):
         self.fc1 = nn.Linear(input_size, 64, device=device)
 
         #[1, 10, 32 * 14 * 14 + 64] -> [1, 10, 256]
-        self.input_layer = nn.Linear(32 * 14 * 14 + 64, 128, device=device)
-        self.lstm = nn.LSTM(128, 512, batch_first=True, device=device)
+        self.input_layer = nn.Linear(32 * 14 * 14 + 64, 64, device=device)
+        self.lstm = nn.LSTM(64, 128, batch_first=True, device=device)
 
         #[1, 10240] -> [1, 512] -> 1
-        self.fc2 = nn.Linear(512 * time, 128, device=device)
-        self.fc3 = nn.Linear(128, 1, device=device)
+        self.fc2 = nn.Linear(128 * time, 32, device=device)
+        self.fc3 = nn.Linear(32, 1, device=device)
         self.outsig = nn.Sigmoid()
         self.time = time
 
@@ -111,7 +114,7 @@ class Discriminator(nn.Module):
         data = self.image_layer(img)
         data = torch.reshape(data, (1, self.time, -1))
 
-        act = torch.cat([move1, move2, jmp * 3, run * 3, crh * 3, del_yaw * 3, del_pitch, pitch,  atkind], dim=2)
+        act = torch.cat([move1, move2, jmp , run , crh , del_yaw , del_pitch, pitch ,  atkind], dim=2)
         act = self.fc1(act)
 
         x = torch.cat([data, act], dim=2)

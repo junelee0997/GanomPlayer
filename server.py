@@ -52,7 +52,7 @@ def loop(activate, activate2):
                 print("parsing failed")
             t1 = s2 - s
             t2 = time.time() - s2
-            print(f'Calculation time: {t2:.3f}', )
+            #print(f'Calculation time: {t2:.3f}', )
             # print("check")
         activate2()
         if not ch:
