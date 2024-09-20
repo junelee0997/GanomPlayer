@@ -12,6 +12,7 @@ import cv2
 whole_g_loss = []
 whole_d_loss = []
 
+time_length = 10
 dropout = 0
 player_count = 1
 inputsize = 32
@@ -34,7 +35,7 @@ generator = model.Generator(device).to(device)
 if 'generator.pt' in os.listdir(gen_path):
     generator.load_state_dict(torch.load(gen_path + '/generator.pt'))
 
-discriminator = model.Discriminator(device).to(device)
+discriminator = model.Discriminator(device, time=time_length).to(device)
 if 'discriminator.pt' in os.listdir(disc_path):
     discriminator.load_state_dict(torch.load(disc_path + '/discriminator.pt'))
 
@@ -50,10 +51,10 @@ g_optimizer = torch.optim.Adam(generator.parameters(), lr=learning_rate)
 user_history = [torch.zeros((1, 9, 12), device=device) for i in range(player_count)]
 bot_history = torch.zeros((1, 9, 12), device=device)
 
-user_img = [torch.zeros((1, 9, 3, 140, 140), device=device) for i in range(player_count)]
-bot_img = torch.zeros((1, 9, 3, 140, 140), device=device)
-user_stat = [[torch.zeros((1, 9, 3), device=device), torch.zeros((1, 9, 3), device=device), torch.zeros((1, 9, 1), device=device), torch.zeros((1, 9, 1), device=device), torch.zeros((1, 9, 1), device=device), torch.zeros((1, 9, 1), device=device), torch.zeros((1, 9, 1), device=device), torch.zeros((1, 9, 1), device=device), torch.zeros((1, 9, 1), device=device)] for i in range(player_count)]
-bot_stat = [torch.zeros((1, 9, 3), device=device), torch.zeros((1, 9, 3), device=device), torch.zeros((1, 9, 1), device=device), torch.zeros((1, 9, 1), device=device), torch.zeros((1, 9, 1), device=device), torch.zeros((1, 9, 1), device=device), torch.zeros((1, 9, 1), device=device), torch.zeros((1, 9, 1), device=device), torch.zeros((1, 9, 1), device=device)]
+user_img = [torch.zeros((1, time_length-1, 3, 140, 140), device=device) for i in range(player_count)]
+bot_img = torch.zeros((1, time_length-1, 3, 140, 140), device=device)
+user_stat = [[torch.zeros((1, time_length-1, 3), device=device), torch.zeros((1, time_length-1, 3), device=device), torch.zeros((1, time_length-1, 1), device=device), torch.zeros((1, time_length-1, 1), device=device), torch.zeros((1, time_length-1, 1), device=device), torch.zeros((1, time_length-1, 1), device=device), torch.zeros((1, time_length-1, 1), device=device), torch.zeros((1, time_length-1, 1), device=device), torch.zeros((1, time_length-1, 1), device=device)] for i in range(player_count)]
+bot_stat = [torch.zeros((1, time_length-1, 3), device=device), torch.zeros((1, time_length-1, 3), device=device), torch.zeros((1, time_length-1, 1), device=device), torch.zeros((1, time_length-1, 1), device=device), torch.zeros((1, time_length-1, 1), device=device), torch.zeros((1, time_length-1, 1), device=device), torch.zeros((1, time_length-1, 1), device=device), torch.zeros((1, time_length-1, 1), device=device), torch.zeros((1, time_length-1, 1), device=device)]
 def generate(msg, client_socket):
     global DiscStep, g_optimizer, d_optimizer, bot_img, user_img, player_count, bot_stat, user_stat
     DiscStep += 1

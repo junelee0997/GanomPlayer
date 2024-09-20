@@ -45,6 +45,7 @@ class Generator(nn.Module):
         self.shift = nn.Sigmoid()
         self.ctrl = nn.Sigmoid()
         self.atk = nn.Sigmoid()
+        self.pit = nn.Sigmoid()
     def forward(self, img, move1, move2, jmp, run, crh, del_yaw, del_pitch, pitch): # data shape : [1, ~]
         data = self.image_layer(img)
         data = torch.reshape(data, (-1, 32 * 14 * 14))
@@ -68,11 +69,12 @@ class Generator(nn.Module):
         crh = self.shift(x[:, 8]).unsqueeze(dim = 0).detach()
         del_yaw = 20 * torch.tanh(x[:, 9]).unsqueeze(dim = 0).detach() # change of yaw(-10~10)
         del_pitch = 10 * torch.tanh(x[:, 10]).unsqueeze(dim = 0).detach() # change of pitch(-10~10)
+        del_pitch = self.pit((del_pitch + pitch) / 180) * 180 - pitch
         atkind = self.atk(x[:, 11]).unsqueeze(dim = 0).detach() # attack or not
 
         return move1, move2, jmp, run, crh, del_yaw, del_pitch, atkind
 class Discriminator(nn.Module):
-    def __init__(self, device, input_size=13, output_size=1):
+    def __init__(self, device, input_size=13, output_size=1, time = 10):
         super().__init__()
         self.device = device
         self.image_layer = nn.Sequential(
@@ -100,13 +102,14 @@ class Discriminator(nn.Module):
         self.lstm = nn.LSTM(128, 512, batch_first=True, device=device)
 
         #[1, 10240] -> [1, 512] -> 1
-        self.fc2 = nn.Linear(5120, 128, device=device)
+        self.fc2 = nn.Linear(512 * time, 128, device=device)
         self.fc3 = nn.Linear(128, 1, device=device)
         self.outsig = nn.Sigmoid()
+        self.time = time
 
     def forward(self, img, move1, move2, jmp, run, crh, del_yaw, del_pitch, pitch, atkind): # data shape : [1, 10, ~]
         data = self.image_layer(img)
-        data = torch.reshape(data, (1, 10, -1))
+        data = torch.reshape(data, (1, self.time, -1))
 
         act = torch.cat([move1, move2, jmp * 3, run * 3, crh * 3, del_yaw * 3, del_pitch, pitch,  atkind], dim=2)
         act = self.fc1(act)
